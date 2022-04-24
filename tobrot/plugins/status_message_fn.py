@@ -163,17 +163,52 @@ async def upload_document_f(client, message):
 async def save_rclone_conf_f(client, message):
     chat_type = message.chat.type
     r_clone_conf_uri = None
+    dbnotice = None
     if chat_type in ["private", "bot", "group"]:
         r_clone_conf_uri = f"https://t.me/PublicLeech/{message.chat.id}/{message.reply_to_message.message_id}"
+        if dbh.setVar("R_CLONE_CONF_URI",r_clone_conf_uri):
+            dbnotice = " -saved in db /restart to restart the bot"
+        else:
+            dbnotice = " - No database for auto config. Create one."
+
     elif chat_type in ["supergroup", "channel"]:
         if message.chat.username:
             r_clone_conf_uri = "please DO NOT upload confidential credentials, in a public group."
         else:
             r_clone_conf_uri = f"https://t.me/c/{str(message.reply_to_message.chat.id)[4:]}/{message.reply_to_message.message_id}"
+        if dbh.setVar("R_CLONE_CONF_URI",r_clone_conf_uri):
+            dbnotice = " -saved in db send /restart to restart the bot"
+        else:
+            dbnotice = " - No database for auto config. Create one."
     else:
         r_clone_conf_uri = "unknown chat_type"
+        dbnotice = ""
+
     await message.reply_text(
         "<code>"
         f"{r_clone_conf_uri}"
+        f"{dbnotice}"
         "</code>"
     )
+
+async def restart_bot(client, message):
+    #a cheap way to restart bot lol ;)))
+    if await AdminCheck(client, message.chat.id, message.from_user.id):
+        LOGGER.error("RESTART COMMAND HERE")
+        await message.reply_text("Restarting see you in a minute.")
+        dbh.setVar("was_restarted","yes")
+        cmd = "pkill -9 python3"
+        
+        process = await asyncio.create_subprocess_shell(
+            cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+    else:
+        await message.reply_text("Not an admin")
+
+async def alive_bot(client, message):
+    #a cheap way to restart bot lol ;)))
+    await message.reply_text("Bot is alive. ;))")
+    
